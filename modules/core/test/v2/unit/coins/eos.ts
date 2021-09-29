@@ -6,6 +6,9 @@ import { Eos } from '../../../../src/v2/coins';
 import { EosResponses } from '../../fixtures/coins/eos';
 
 import { TestBitGo } from '../../../lib/test_bitgo';
+import { Wallet } from '../../../../src';
+import * as Bluebird from 'bluebird';
+const co = Bluebird.coroutine;
 
 describe('EOS:', function () {
   let bitgo;
@@ -210,6 +213,135 @@ describe('EOS:', function () {
       explainedTx.outputs[0].address.should.equal('asdfasdfasdf');
       explainedTx.id.should.equal('6132f3bf4a746e6ecad8a31df67d71b4741fc5b7c868ae36dde18309a91df8a6');
       explainedTx.memo.should.equal('1');
+    });
+  });
+
+  describe('Transaction Verification', function () {
+    let wallet;
+    let basecoin;
+
+    before(co(function *() {
+      basecoin = bitgo.coin('teos');
+      const walletData = {
+        id: '5a78dd561c6258a907f1eeaee132f796',
+        users: [
+          {
+            user: '543c11ed356d00cb7600000b98794503',
+            permissions: [
+              'admin',
+              'view',
+              'spend',
+            ],
+          },
+        ],
+        coin: 'teos',
+        label: 'Verification Wallet',
+        m: 2,
+        n: 3,
+        keys: [
+          '5a78dd56bfe424aa07aa068651b194fd',
+          '5a78dd5674a70eb4079f58797dfe2f5e',
+          '5a78dd561c6258a907f1eea9f1d079e2',
+        ],
+        tags: [
+          '5a78dd561c6258a907f1eeaee132f796',
+        ],
+        disableTransactionNotifications: false,
+        freeze: {},
+        deleted: false,
+        approvalsRequired: 1,
+        isCold: true,
+        coinSpecific: {},
+        clientFlags: [],
+        balance: 650000000,
+        confirmedBalance: 650000000,
+        spendableBalance: 650000000,
+        balanceString: '650000000',
+        confirmedBalanceString: '650000000',
+        spendableBalanceString: '650000000',
+        receiveAddress: {
+          id: '5a78de2bbfe424aa07aa131ec03c8dc1',
+          address: '78xczhaijyhek2',
+          chain: 0,
+          index: 0,
+          coin: 'teos',
+          wallet: '5a78dd561c6258a907f1eeaee132f796',
+          coinSpecific: {},
+        },
+        pendingApprovals: [],
+      };
+      wallet = new Wallet(bitgo, basecoin, walletData);
+    }));
+
+    const userKeychain = {
+      prv: '5KJq565HTrgEJG9EbvJH5BLYTgioAyY27dT9am1kCtn2YVAJEYK',
+      pub: 'EOS6g7AAMQkhXp8j73E8BD4KRwtQevEsFgYx8htaQkRVhhXJMgkMZ',
+    };
+
+    const backupKeychain = {
+      prv: '5KZ1nXXCi5yXH8AjCJqjnCYHCVnhQa9YWGV2D14i8g221dxNwLW',
+      pub: 'EOS7gyDLNk12faVb1aqNxj1L2DpBerFkhAsxBs95yW3yxJpqvg9Mt',
+    };
+
+    const txPrebuild = {
+      recipients: [
+        {
+          address: 'asdfasdfasdf',
+          amount: '100',
+        },
+      ],
+      headers: {
+        expiration: '2021-09-15T17:10:28.346',
+        ref_block_num: 1,
+        ref_block_prefix: 100,
+      },
+      txHex: 'e70aaab8997e1dfce58fbfac80cbbb8fecec7b99cf982a9444273cbc64c41473042942610100640000000000000100408c7a02ea3055000000000085269d000201310100a6823403ea3055000000572d3ccdcd01d0f9ce64f437f7cf00000000a8ed323222d0f9ce64f437f7cfb012362b61b31236640000000000000004454f53000000000131000000000000000000000000000000000000000000000000000000000000000000',
+      transaction: {
+        compression: 'none',
+        packed_trx: '042942610100640000000000000100408c7a02ea3055000000000085269d000201310100a6823403ea3055000000572d3ccdcd01d0f9ce64f437f7cf00000000a8ed323222d0f9ce64f437f7cfb012362b61b31236640000000000000004454f5300000000013100',
+        signatures: [],
+      },
+      txid: '0492e8cf6275b9ee7c0685fc22211b174dd5bc8834b1963b52ae6486c41dad25',
+      isVotingTransaction: false,
+      coin: 'teos',
+    };
+
+    it('should verify a transaction', async function () {
+      const seed = Buffer.from('c3b09c24731be2851b624d9d5b3f60fa129695c24071768d15654bea207b7bb6', 'hex');
+      const keyPair = basecoin.generateKeyPair(seed);
+
+      // mock responses to the block chain
+      const sandBox = sinon.createSandbox();
+      const callBack = sandBox.stub(Eos.prototype, <any>'getDataFromNode');
+      callBack.withArgs({
+        endpoint: '/v1/chain/get_info',
+      }).resolves(EosResponses.getInfoResponseSuccess1);
+      callBack.withArgs({
+        endpoint: '/v1/chain/get_block',
+        payload: { block_num_or_id: 191839472 },
+      }).resolves(EosResponses.getBlockResponseSuccess1);
+
+      const txParams = {
+        txPrebuild,
+        prv: keyPair.prv,
+        recipients: [
+          {
+            address: 'asdfasdfasdf?memoId=1',
+            amount: '100',
+          },
+        ],
+      };
+
+      const verification = {
+        disableNetworking: true,
+        keychains: {
+          user: { pub: userKeychain.pub },
+          backup: { pub: backupKeychain.pub },
+        },
+      };
+
+      const validTransaction = await basecoin.verifyTransaction({ txParams, txPrebuild, wallet, verification });
+      validTransaction.should.equal(true);
     });
   });
 });
