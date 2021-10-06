@@ -17,6 +17,8 @@ import * as common from '../../../src/common';
 
 import { TestBitGo } from '../../lib/test_bitgo';
 import { HalfSignedUtxoTransaction } from '../../../src';
+import * as bip32 from "bip32";
+import * as secp256k1 from "secp256k1";
 nock.disableNetConnect();
 
 describe('V2 Wallet:', function () {
@@ -804,6 +806,71 @@ describe('V2 Wallet:', function () {
       }
 
       response.isDone().should.be.true();
+    });
+  });
+
+  describe('Defi Transactions', function() {
+    let ethWallet;
+
+    before(async function () {
+      const walletData = {
+        id: '598f606cd8fc24710d2ebadb1d9459bb',
+        coin: 'teth',
+        keys: [
+          '598f606cd8fc24710d2ebad89dce86c2',
+          '598f606cc8e43aef09fcb785221d9dd2',
+          '5935d59cf660764331bafcade1855fd7',
+        ],
+      };
+      ethWallet = new Wallet(bitgo, bitgo.coin('teth'), walletData);
+      const bitgoKeyXprv = 'xprv9s21ZrQH143K3tpWBHWe31sLoXNRQ9AvRYJgitkKxQ4ATFQMwvr7hHNqYRUnS7PsjzB7aK1VxqHLuNQjj1sckJ2Jwo2qxmsvejwECSpFMfC';
+      const bitgoKey = bip32.fromBase58(bitgoKeyXprv);
+      if (!bitgoKey.privateKey) {
+        throw new Error('no privateKey');
+      }
+      const bitgoXpub = bitgoKey.neutered().toBase58();
+
+      const env = 'test';
+      bitgo = new TestBitGo({ env: 'test' });
+      common.Environments[env].hsmXpub = bitgoXpub;
+      bitgo.initializeTestVars();
+    });
+
+    it('should successfully sign and send a mmi transaction', async function () {
+      const userKeychain = {
+        prv: 'xprv9s21ZrQH143K3hekyNj7TciR4XNYe1kMj68W2ipjJGNHETWP7o42AjDnSPgKhdZ4x8NBAvaL72RrXjuXNdmkMqLERZza73oYugGtbLFXG8g',
+        pub: 'xpub661MyMwAqRbcGBjE5QG7pkf9cZD33UUD6K46q7ELrbuG7FqXfLNGiXYGHeEnGBb5AWREnk1eA28g8ArZvURbhshXWkTtddHRo54fgyVvLdb',
+        rawPub: '023636e68b7b204573abda2616aff6b584910dece2543f1cc6d842caac7d74974b',
+        rawPrv: '7438a50010ce7b1dfd86e68046cc78ba1ebd242d6d85d9904d3fcc08734bc172',
+      };
+
+      const mmiTransaction = {
+        id: '1234-1233-12312-1233',
+        recipients: [
+          {
+            amount: '1000000000000000',
+            address: '0x174cfd823af8ce27ed0afee3fcf3c3ba259116be',
+            data: '0x0000000',
+          },
+        ],
+        nextContractSequenceId: 10897,
+        gasLimit: 500000,
+        isBatch: false,
+        coin: 'teth',
+      };
+      const path = `/api/v2/${ethWallet.coin()}/wallet/${ethWallet.id()}/tx/send`;
+      nock(bgUrl)
+          .post(path)
+          .reply(200);
+
+      const path2 = `/api/v2/teth/wallet/${ethWallet.id()}/address/${ethWallet.id()}`;
+      nock(bgUrl).get(path2).reply(200, 'address');
+
+      const path3 = `/api/v2/teth/key/598f606cd8fc24710d2ebad89dce86c2`;
+      console.log(path3);
+      nock(bgUrl).get(path3).reply(200, userKeychain);
+
+      await ethWallet.signAndSendMMiTransaction({ transaction: mmiTransaction });
     });
   });
 

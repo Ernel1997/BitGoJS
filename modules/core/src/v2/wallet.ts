@@ -1894,12 +1894,18 @@ export class Wallet {
     }).call(this).asCallback(callback);
   }
 
-  signAndSendDefiTransaction(params: any, callback?: NodeCallback<any>): Bluebird<any> {
+  signAndSendMMiTransaction(params: any, callback?: NodeCallback<any>): Bluebird<any> {
     const self = this;
     return co(function *() {
       const txData = params.transaction.recipients[0].data;
       const txPrebuild = {
+        coin: self.coin(),
+        recipients: params.transaction.recipients,
+        nextContractSequenceId: params.transaction.nextContractSequenceId,
+        gasLimit: params.transaction.gasLimit,
+        isBatch: false,
         walletId: self.id(),
+        walletContractAddress: yield self.getAddress({ id: self.id() }),
         txHex: txData,
       };
       // retrieve our keychains needed to run the prebuild - some coins use all pubs
@@ -1908,13 +1914,14 @@ export class Wallet {
       // pass our three keys
       const signingParams = _.extend({}, params, {
         txPrebuild: txPrebuild,
-        wallet: {
-          // this is the version of the multisig address at wallet creation time
-          addressVersion: self._wallet.coinSpecific.addressVersion,
-        },
+        // wallet: {
+        //   // this is the version of the multisig address at wallet creation time
+        //   addressVersion: self._wallet.coinSpecific.addressVersion,
+        // },
         keychain: keychains[0],
         backupKeychain: (keychains.length > 1) ? keychains[1] : null,
         bitgoKeychain: (keychains.length > 2) ? keychains[2] : null,
+        prv: keychains[0].prv,
       });
 
       let halfSignedTx;
@@ -1935,6 +1942,9 @@ export class Wallet {
         }
         throw error;
       }
+
+      halfSignedTx.halfSigned.isMMITransaction = true;
+      halfSignedTx.halfSigned.custodianTransactionId = params.transaction.id;
 
       return self.bitgo.post(self.url('/tx/send'))
         .send(halfSignedTx)
