@@ -1894,7 +1894,13 @@ export class Wallet {
     }).call(this).asCallback(callback);
   }
 
-  signAndSendMMiTransaction(params: any, callback?: NodeCallback<any>): Bluebird<any> {
+  /**
+   * Sign a metamask transaction and send to wallet platform for pending approval.
+   *
+   * @param params
+   * @param callback
+   */
+  signAndSendMMITransaction(params: any/* TODO: add type */, callback?: NodeCallback<any>): Bluebird<any> {
     const self = this;
     return co(function *() {
       const txData = params.transaction.recipients[0].data;
@@ -1943,6 +1949,7 @@ export class Wallet {
         throw error;
       }
 
+      // Add MMI flag to half signed tx for tx state updated webhooks
       halfSignedTx.halfSigned.isMMITransaction = true;
       halfSignedTx.halfSigned.custodianTransactionId = params.transaction.id;
 
