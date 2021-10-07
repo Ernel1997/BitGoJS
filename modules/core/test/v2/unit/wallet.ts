@@ -823,17 +823,6 @@ describe('V2 Wallet:', function () {
         ],
       };
       ethWallet = new Wallet(bitgo, bitgo.coin('teth'), walletData);
-      const bitgoKeyXprv = 'xprv9s21ZrQH143K3tpWBHWe31sLoXNRQ9AvRYJgitkKxQ4ATFQMwvr7hHNqYRUnS7PsjzB7aK1VxqHLuNQjj1sckJ2Jwo2qxmsvejwECSpFMfC';
-      const bitgoKey = bip32.fromBase58(bitgoKeyXprv);
-      if (!bitgoKey.privateKey) {
-        throw new Error('no privateKey');
-      }
-      const bitgoXpub = bitgoKey.neutered().toBase58();
-
-      const env = 'test';
-      bitgo = new TestBitGo({ env: 'test' });
-      common.Environments[env].hsmXpub = bitgoXpub;
-      bitgo.initializeTestVars();
     });
 
     it('should successfully sign and send a mmi transaction', async function () {
@@ -858,19 +847,17 @@ describe('V2 Wallet:', function () {
         isBatch: false,
         coin: 'teth',
       };
+
       const path = `/api/v2/${ethWallet.coin()}/wallet/${ethWallet.id()}/tx/send`;
-      nock(bgUrl)
-          .post(path)
-          .reply(200);
+      nock(bgUrl).post(path).reply(200);
 
       const path2 = `/api/v2/teth/wallet/${ethWallet.id()}/address/${ethWallet.id()}`;
       nock(bgUrl).get(path2).reply(200, 'address');
 
-      const path3 = `/api/v2/teth/key/598f606cd8fc24710d2ebad89dce86c2`;
-      console.log(path3);
+      const path3 = `/api/v2/teth/key/${ethWallet.keyIds()[0]}`;
       nock(bgUrl).get(path3).reply(200, userKeychain);
 
-      await ethWallet.signAndSendMMiTransaction({ transaction: mmiTransaction });
+      await ethWallet.signAndSendMMITransaction({ transaction: mmiTransaction });
     });
   });
 
