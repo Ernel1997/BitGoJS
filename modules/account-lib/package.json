@@ -52,7 +52,7 @@
     "bip32": "^2.0.6",
     "bitcoinjs-lib": "^5.2.0",
     "bs58check": "^2.1.2",
-    "casper-client-sdk": "1.0.39",
+    "casper-client-sdk": "1.4.2",
     "elliptic": "^6.5.2",
     "ethereumjs-abi": "^0.6.5",
     "ethereumjs-util": "6.2.1",
