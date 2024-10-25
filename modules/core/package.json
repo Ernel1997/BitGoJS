@@ -76,7 +76,7 @@
     "ripple-keypairs": "^0.11.0",
     "ripple-lib": "^1.4.1",
     "sanitize-html": "^1.27.5",
-    "secp256k1": "^4.0.2",
+    "secp256k1": "^4.0.4",
     "secrets.js-grempe": "^1.1.0",
     "stellar-sdk": "^8.2.5",
     "superagent": "^3.8.3",
